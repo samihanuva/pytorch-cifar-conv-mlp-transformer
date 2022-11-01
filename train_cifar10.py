@@ -30,6 +30,16 @@ from randomaug import RandAugment
 from models.vit import ViT
 from models.convmixer import ConvMixer
 
+import torch
+import random
+torch.manual_seed(37)
+random.seed(37)
+np.random.seed(37)
+torch.use_deterministic_algorithms(True)
+
+
+
+
 # parsers
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
 parser.add_argument('--lr', default=1e-4, type=float, help='learning rate') # resnets.. 1e-3, Vit..1e-4
@@ -93,14 +103,26 @@ transform_test = transforms.Compose([
 if aug:  
     N = 2; M = 14;
     transform_train.transforms.insert(0, RandAugment(N, M))
+    
+#reproduce   
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    numpy.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+g = torch.Generator()
+g.manual_seed(37) 
+
 
 # Prepare dataset
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
 #shuffle set to false 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=False, num_workers=8)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs, shuffle=False, num_workers=2,worker_init_fn=seed_worker,
+    generator=g)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=8)
+testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2,worker_init_fn=seed_worker,
+    generator=g)
 
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
